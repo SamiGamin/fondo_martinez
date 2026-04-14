@@ -6,6 +6,7 @@ Aplicación web moderna y responsiva para la gestión integral de fondos compart
 
 - **Matriz de Pagos**: Visualización clara del estado de pagos por persona y mes
 - **Dashboard Financiero**: Estadísticas agregadas y tendencias de gastos
+- **Calculadora de Pagos**: Herramienta para calcular montos pendientes hasta un mes específico
 - **Sincronización en Tiempo Real**: Actualización instantánea con Firebase Realtime Database
 - **Modo Oscuro**: Interfaz adaptable al tema del sistema operativo
 - **PWA Compatible**: Instalable como aplicación de escritorio nativa
@@ -102,6 +103,7 @@ fondo_martinez/
 │   │   ├── dataTransformers.js    # Transformación de datos brutos
 │   │   └── financeTransformers.js # Cálculos y transformaciones financieras
 │   ├── App.jsx             # Componente raíz de la aplicación
+│   ├── PaymentCalculator.jsx # Calculadora de pagos pendientes
 │   ├── index.css           # Estilos globales
 │   ├── main.jsx            # Punto de entrada de React
 ├── index.html              # Archivo HTML principal
@@ -165,6 +167,15 @@ Visualiza quién ha pagado en cada mes del año seleccionado:
 - Indicadores visuales (checkmark para pagado, círculo para no pagado)
 - Ordenamiento automático por cantidad de pagos realizados
 - Navegación entre años
+
+### Calculadora de Pagos
+Herramienta interactiva para calcular montos pendientes de pago:
+- **Selección de Persona**: Elige cualquier miembro del fondo familiar
+- **Último Mes Pagado**: Muestra automáticamente el último mes registrado como pagado
+- **Monto Mensual**: Ingresa el monto que pagas normalmente cada mes
+- **Mes Objetivo**: Selecciona hasta qué mes quieres calcular los pagos pendientes
+- **Cálculo Automático**: Calcula el total a pagar para ponerte al día
+- **Solo Informativo**: No guarda datos, solo muestra cálculos
 
 ### Panel Financiero
 Muestra estadísticas agregadas:
@@ -299,4 +310,4 @@ Para reportar bugs o sugerir features, abre un [issue en GitHub](https://github.
 
 ---
 
-**Última actualización**: Abril 2026
+**Última actualización**: Abril 2026 - Calculadora de Pagos

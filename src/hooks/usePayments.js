@@ -1,21 +1,34 @@
 import { useState, useEffect } from 'react';
 import { subscribeToPayments } from '../services/paymentService';
 import { transformJsonToMatrix } from '../utils/dataTransformers';
+// 1. Asegúrate de importar el nuevo utilitario
+import { calculateFinances } from '../utils/financeTransformers'; 
 
 export const usePayments = (year) => {
-  const [data, setData] = useState({ matrix: [], total: 0 });
+  // 2. Iniciamos el estado con finances en 0
+  const [data, setData] = useState({ 
+    matrix: [], 
+    total: 0, 
+    finances: { ingresos: 0, gastos: 0, balance: 0 } 
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    
-    // Apuntamos exactamente al nodo de tu imagen
-    const dbPath = 'Fondo';
+    const dbPath = 'Fondo'; 
 
     const unsubscribe = subscribeToPayments(dbPath, (rawJson) => {
-      // Le enviamos el JSON crudo y el año actual del filtro
-      const processedData = transformJsonToMatrix(rawJson, year);
-      setData(processedData);
+      // 3. Procesamos los datos con AMBOS archivos
+      const matrixData = transformJsonToMatrix(rawJson, year);
+      const financesData = calculateFinances(rawJson, year);
+
+      // 4. Guardamos todo junto en el estado
+      setData({
+        matrix: matrixData.matrix,
+        total: matrixData.totalCuotas || matrixData.total || 0, // Por si acaso
+        finances: financesData // Aquí se inyecta la plata
+      });
+      
       setLoading(false);
     });
 

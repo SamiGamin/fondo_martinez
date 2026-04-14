@@ -1,26 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* index.css */
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   margin: 0;
-  background-color: #f9fafb; /* gray-50 */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  @apply bg-gray-50 text-gray-900 transition-colors duration-300;
 }
 
-/* Opcional: Ocultar la barra de scroll en la tabla para móviles, 
-   pero manteniendo la capacidad de hacer scroll con el dedo */
+.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+/* Scrollbar responsivo y adaptativo */
 .overflow-x-auto::-webkit-scrollbar {
   height: 6px;
 }
 
-.overflow-x-auto::-webkit-scrollbar-track {
-  background: transparent;
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
 }
 
-.overflow-x-auto::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb; /* gray-200 */
-  border-radius: 10px;
+.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+  @apply bg-slate-700;
 }

@@ -1,38 +1,40 @@
 export const transformJsonToMatrix = (rawJson, selectedYear) => {
-  // Si la base de datos está vacía, retornamos los valores por defecto
   if (!rawJson) return { matrix: [], total: 0 };
 
-  // Convertimos el objeto de Firebase en un array plano
   const pagosArray = Object.values(rawJson);
+  const normalizar = (t) => t.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-  // 1. Filtrar solo los depósitos válidos que coincidan con el año del select
+  const formatearNombre = (n) => {
+    const p = n.trim().split(/\s+/);
+    return p.length > 1 ? `${p[0]} ${p[1].charAt(0)}.` : p[0];
+  };
+
+  // Extraer nombres únicos limpiando duplicados reales en la base
+  const nombresMap = {};
+  pagosArray.forEach(p => {
+    const norm = normalizar(p.quien);
+    if (!nombresMap[norm]) nombresMap[norm] = p.quien.trim();
+  });
+
+  const siblings = Object.values(nombresMap).sort();
+  
   const pagosDelAño = pagosArray.filter(p => {
-    if (p.tipo !== 'deposito') return false;
-    
-    // Convertimos los milisegundos a un objeto Date real
     const fecha = new Date(p.fecha);
-    return fecha.getFullYear() === parseInt(selectedYear);
+    return p.tipo === 'deposito' && fecha.getFullYear() === parseInt(selectedYear);
   });
 
-  // 2. Extraer los nombres únicos de los hermanos de toda la base de datos
-  // (Para que aparezcan en la tabla incluso si no han pagado este año)
-  const siblings = [...new Set(pagosArray.map(p => p.quien))].sort();
-  
-  const months = Array.from({ length: 12 }, (_, i) => i);
-  
-  // 3. Crear el mapa de búsqueda rápida O(1)
-  const paymentsMap = new Map();
+  // Usar un Set para evitar cualquier duplicado de mes por persona
+  const paymentsSet = new Set();
   pagosDelAño.forEach(p => {
-    const month = new Date(p.fecha).getMonth(); // 0 es Enero, 11 es Diciembre
-    paymentsMap.set(`${p.quien}-${month}`, true);
+    const month = new Date(p.fecha).getMonth();
+    paymentsSet.add(`${normalizar(p.quien)}-${month}`);
   });
 
-  // 4. Construir la matriz para la interfaz
   const matrix = siblings.map(name => ({
-    name,
-    months: months.map(m => paymentsMap.has(`${name}-${m}`))
+    displayName: formatearNombre(name),
+    originalName: name,
+    months: Array.from({ length: 12 }, (_, m) => paymentsSet.has(`${normalizar(name)}-${m}`))
   }));
 
-  // Retornamos la matriz y el total de cuotas pagadas en ese año
   return { matrix, total: pagosDelAño.length };
 };

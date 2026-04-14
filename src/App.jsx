@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, User, Wallet, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info } from 'lucide-react';
+import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info } from 'lucide-react';
 import { usePayments } from './hooks/usePayments';
 import PaymentCalculator from './PaymentCalculator';
 
@@ -81,7 +81,7 @@ const App = () => {
           <div className="flex items-center justify-between w-full md:w-auto">
             <div className="flex items-center gap-2 md:gap-4">
               <div className="p-2 md:p-4 bg-blue-600 rounded-xl md:rounded-2xl shadow-lg shadow-blue-500/20">
-                <Wallet className="text-white w-5 h-5 md:w-8 md:h-8" />
+                <img src="/pwa-192x192.png" alt="Fondo Familiar" className="w-5 h-5 md:w-8 md:h-8" />
               </div>
               <div>
                 <h1 className="text-base md:text-3xl font-black dark:text-slate-100">Fondo Familiar</h1>
@@ -111,7 +111,7 @@ const App = () => {
   <div className="bg-blue-600 p-3 rounded-2xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-4">
     <div className="flex items-center gap-3">
       <div className="p-2 bg-white/20 rounded-lg">
-        <Wallet className="text-white" size={18} />
+        <img src="/pwa-192x192.png" alt="Fondo Familiar" className="w-[18px] h-[18px]" />
       </div>
       <p className="text-white text-xs font-bold">Instala la App de Fondo Familiar</p>
     </div>

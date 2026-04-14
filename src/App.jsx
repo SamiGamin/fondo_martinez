@@ -18,6 +18,27 @@ const App = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+  // --- 2. Lógica para detectar si se puede instalar la App ---
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const ready = (e) => {
+      e.preventDefault(); // Evita que Chrome decida por su cuenta
+      setInstallPrompt(e); // Guarda el evento en el estado
+    };
+
+    window.addEventListener('beforeinstallprompt', ready);
+
+    return () => window.removeEventListener('beforeinstallprompt', ready);
+  }, []);
+
+  // Función para disparar la instalación cuando el usuario toque el botón
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+  };
 
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   
@@ -84,6 +105,23 @@ const App = () => {
             </div>
           </div>
         </header>
+        {/* Aviso de Instalación - Solo aparece si no está instalada */}
+{installPrompt && (
+  <div className="bg-blue-600 p-3 rounded-2xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-4">
+    <div className="flex items-center gap-3">
+      <div className="p-2 bg-white/20 rounded-lg">
+        <Wallet className="text-white" size={18} />
+      </div>
+      <p className="text-white text-xs font-bold">Instala la App de Fondo Familiar</p>
+    </div>
+    <button 
+      onClick={handleInstallClick}
+      className="bg-white text-blue-600 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+    >
+      Instalar
+    </button>
+  </div>
+)}
 
         {/* Resumen Financiero */}
         <div className="grid grid-cols-3 gap-2 md:gap-6">

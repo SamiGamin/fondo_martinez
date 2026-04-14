@@ -1,0 +1,101 @@
+// firebase-rules.json
+// Reglas de Seguridad de Firebase para Fondo Martínez
+// 
+// INSTRUCCIONES:
+// 1. Ve a: https://console.firebase.google.com
+// 2. Selecciona proyecto: mb-money-3c1e1
+// 3. Realtime Database > Rules
+// 4. Reemplaza el contenido con esto
+// 5. Click en "Publish"
+
+{
+  "rules": {
+    // ========== CONFIGURACIÓN GLOBAL ==========
+    
+    // Por defecto, denegar TODO
+    ".read": false,
+    ".write": false,
+    ".indexOn": ["year", "month", "person", "timestamp"],
+    
+    // ========== SECCIÓN: PAGOS ==========
+    // Solo lectura - la aplicación ve los datos pero no puede modificarlos
+    
+    "payments": {
+      ".read": true,
+      ".write": false,
+      
+      // Validar estructura de datos
+      ".validate": "newData.isObject() || newData.val() === null",
+      
+      // Sub-nodos de año
+      "$year": {
+        ".read": true,
+        ".write": false,
+        ".validate": "newData.isString() && newData.val().matches(/^\\d{4}$/)",
+        
+        // Sub-nodos de personas
+        "$person": {
+          ".read": true,
+          ".write": false,
+          ".validate": "newData.isObject()",
+          
+          // Datos mensuales
+          "$month": {
+            ".read": true,
+            ".write": false,
+            ".validate": "newData.isBoolean() || newData.val() === null"
+          }
+        }
+      }
+    },
+    
+    // ========== SECCIÓN: FINANZAS ==========
+    // Solo lectura - estadísticas agregadas
+    
+    "finances": {
+      ".read": true,
+      ".write": false,
+      ".validate": "newData.isObject() || newData.val() === null",
+      
+      "$year": {
+        ".read": true,
+        ".write": false,
+        ".validate": "newData.isObject()",
+        
+        "$field": {
+          ".read": true,
+          ".write": false,
+          ".validate": "newData.isNumber() || newData.isString()"
+        }
+      }
+    },
+    
+    // ========== SECCIÓN: METADATA ==========
+    // Información sobre la aplicación
+    
+    "metadata": {
+      ".read": true,
+      ".write": false,
+      ".validate": "newData.isObject()",
+      
+      "version": {
+        ".read": true,
+        ".write": false,
+        ".validate": "newData.isString()"
+      },
+      
+      "lastUpdate": {
+        ".read": true,
+        ".write": false,
+        ".validate": "newData.isNumber()"
+      }
+    },
+    
+    // ========== BLOQUEAR TODO LO DEMÁS ==========
+    
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

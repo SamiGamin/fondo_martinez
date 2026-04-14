@@ -90,9 +90,9 @@ const App = () => {
           <div className="bg-white dark:bg-[#1e293b] p-2 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingUp className="text-emerald-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block" />
-              <p className="text-[7px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest">Ingresos</p>
+              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest">Ingresos</p>
             </div>
-            <p className="text-[10px] sm:text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatMoney(finances?.ingresos)}</p>
+            <p className="text-[16px] sm:text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatMoney(finances?.ingresos)}</p>
           </div>
           
           <div 
@@ -104,17 +104,17 @@ const App = () => {
             </div>
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingDown className="text-rose-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-rose-600 transition-colors" />
-              <p className="text-[7px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-rose-500 transition-colors">Gastos</p>
+              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-rose-500 transition-colors">Gastos</p>
             </div>
-            <p className="text-[10px] sm:text-lg md:text-3xl font-black text-rose-600 dark:text-rose-400 truncate">{formatMoney(finances?.gastos)}</p>
+            <p className="text-[16px] sm:text-lg md:text-3xl font-black text-rose-600 dark:text-rose-400 truncate">{formatMoney(finances?.gastos)}</p>
           </div>
 
           <div className="bg-blue-600 p-2 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-blue-500">
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <PiggyBank className="text-blue-100 w-3 h-3 md:w-5 md:h-5 hidden sm:block" />
-              <p className="text-[7px] md:text-xs font-black text-blue-100 uppercase tracking-tighter md:tracking-widest">Saldo Real</p>
+              <p className="text-[14px] md:text-xs font-black text-blue-100 uppercase tracking-tighter md:tracking-widest">Saldo Real</p>
             </div>
-            <p className="text-[10px] sm:text-lg md:text-3xl font-black text-white truncate">{formatMoney(finances?.balance)}</p>
+            <p className="text-[16px] sm:text-lg md:text-3xl font-black text-white truncate">{formatMoney(finances?.balance)}</p>
           </div>
         </div>
 

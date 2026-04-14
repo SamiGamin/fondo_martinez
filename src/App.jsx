@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, User, Wallet, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info } from 'lucide-react';
 import { usePayments } from './hooks/usePayments';
+import PaymentCalculator from './PaymentCalculator';
 
 const App = () => {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -171,6 +172,9 @@ const App = () => {
             <div className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-1000" style={{ width: `${porcentajeProgreso}%` }} />
           </div>
         </section>
+
+        {/* Calculadora de Pagos */}
+        <PaymentCalculator matrix={matrix} year={year} />
 
         {/* Tabla Responsiva Optimizada */}
         <section className="bg-white dark:bg-[#1e293b] rounded-2xl md:rounded-3xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden">

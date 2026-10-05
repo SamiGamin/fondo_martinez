@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  X, LogOut, PlusCircle, TrendingDown, History, User, 
-  Calendar, DollarSign, Check, Trash2, Edit3, Search, 
-  AlertTriangle, Loader2, Sparkles 
+  X, LogOut, PlusCircle, TrendingDown, History, 
+  DollarSign, Check, Trash2, Search, Loader2, Sparkles 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { createPayment, updatePayment, deletePayment } from '../../services/paymentService';
+import { createPayment, deletePayment } from '../../services/paymentService';
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
@@ -16,7 +15,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
   const { currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('deposito'); // 'deposito' | 'gasto' | 'historial'
 
-  // Lista de familiares únicos existentes
+  // Lista cerrada de hermanos existentes
   const familyMembers = useMemo(() => {
     const set = new Set();
     matrix.forEach(m => {
@@ -28,7 +27,6 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
   // --- Estado Formulario Depósito ---
   const [depPerson, setDepPerson] = useState('');
-  const [depCustomPerson, setDepCustomPerson] = useState('');
   const [depYear, setDepYear] = useState(currentYear || new Date().getFullYear());
   const [depMonth, setDepMonth] = useState(new Date().getMonth());
   const [depAmount, setDepAmount] = useState('50000');
@@ -37,29 +35,30 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
   const [depSuccessMsg, setDepSuccessMsg] = useState('');
 
   // --- Estado Formulario Gasto ---
-  const [gasPerson, setGasPerson] = useState('Fondo Común');
-  const [gasCustomPerson, setGasCustomPerson] = useState('');
+  const [gasPerson, setGasPerson] = useState('');
   const [gasDesc, setGasDesc] = useState('');
   const [gasAmount, setGasAmount] = useState('');
   const [gasDate, setGasDate] = useState(new Date().toISOString().split('T')[0]);
   const [gasSubmitting, setGasSubmitting] = useState(false);
   const [gasSuccessMsg, setGasSuccessMsg] = useState('');
 
-  // --- Estado Historial y Filtros ---
+  // --- Estado Historial y Eliminación ---
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('todos'); // 'todos' | 'deposito' | 'gasto'
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
-  // --- Estado Edición ---
-  const [editingItem, setEditingItem] = useState(null);
-  const [editAmount, setEditAmount] = useState('');
-  const [editPerson, setEditPerson] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [editSubmitting, setEditSubmitting] = useState(false);
-
-  if (!isOpen) return null;
+  // Hook useMemo para filtrado (Siempre antes de cualquier return)
+  const filteredItems = useMemo(() => {
+    return rawItems.filter(item => {
+      const matchType = filterType === 'todos' || item.tipo === filterType;
+      const search = searchTerm.toLowerCase();
+      const matchSearch = !search || 
+        (item.quien && item.quien.toLowerCase().includes(search)) ||
+        (item.descripcion && item.descripcion.toLowerCase().includes(search));
+      return matchType && matchSearch;
+    });
+  }, [rawItems, filterType, searchTerm]);
 
   const formatMoney = (val) => {
     const num = parseFloat(val);
@@ -72,9 +71,8 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
   // Guardar Depósito
   const handleCreateDeposit = async (e) => {
     e.preventDefault();
-    const finalPerson = depPerson === '__otro__' ? depCustomPerson.trim() : depPerson.trim();
-    if (!finalPerson) {
-      alert('Por favor selecciona o escribe el nombre del familiar');
+    if (!depPerson.trim()) {
+      alert('Por favor selecciona un hermano de la lista');
       return;
     }
     const amountNum = parseFloat(depAmount);
@@ -87,24 +85,19 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
     setDepSuccessMsg('');
 
     try {
-      // Fecha fijada en el día 15 del mes seleccionado para coincidir con la matriz mensual
       const targetDate = new Date(parseInt(depYear), parseInt(depMonth), 15, 12, 0, 0).getTime();
       const defaultDesc = depDesc.trim() || `Cuota ${MESES[depMonth]} ${depYear}`;
 
       await createPayment({
         tipo: 'deposito',
-        quien: finalPerson,
+        quien: depPerson.trim(),
         cuanto: amountNum,
         fecha: targetDate,
         descripcion: defaultDesc
       });
 
-      setDepSuccessMsg(`¡Aporte de ${finalPerson} (${MESES[depMonth]}) registrado con éxito!`);
+      setDepSuccessMsg(`¡Aporte de ${depPerson} (${MESES[depMonth]}) registrado con éxito!`);
       setDepDesc('');
-      if (depPerson === '__otro__') {
-        setDepPerson(finalPerson);
-        setDepCustomPerson('');
-      }
       setTimeout(() => setDepSuccessMsg(''), 4000);
     } catch (err) {
       alert('Error al guardar el depósito: ' + err.message);
@@ -116,9 +109,12 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
   // Guardar Gasto
   const handleCreateExpense = async (e) => {
     e.preventDefault();
-    const finalPerson = gasPerson === '__otro__' ? gasCustomPerson.trim() : gasPerson.trim();
     if (!gasDesc.trim()) {
       alert('Por favor ingresa el concepto o descripción del gasto');
+      return;
+    }
+    if (!gasPerson.trim()) {
+      alert('Por favor selecciona el hermano responsable del gasto');
       return;
     }
     const amountNum = parseFloat(gasAmount);
@@ -136,7 +132,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
       await createPayment({
         tipo: 'gasto',
-        quien: finalPerson || 'Fondo Común',
+        quien: gasPerson.trim(),
         cuanto: amountNum,
         fecha: targetDate,
         descripcion: gasDesc.trim()
@@ -166,56 +162,11 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
     }
   };
 
-  // Iniciar Edición
-  const startEdit = (item) => {
-    setEditingItem(item);
-    setEditAmount(item.cuanto || '');
-    setEditPerson(item.quien || '');
-    setEditDesc(item.descripcion || '');
-    const dateObj = new Date(item.fecha || Date.now());
-    setEditDate(dateObj.toISOString().split('T')[0]);
-  };
-
-  // Guardar Edición
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    if (!editingItem) return;
-
-    setEditSubmitting(true);
-    try {
-      const [y, m, d] = editDate.split('-').map(Number);
-      const updatedTimestamp = new Date(y, m - 1, d, 12, 0, 0).getTime();
-
-      await updatePayment(editingItem.id, {
-        quien: editPerson.trim(),
-        cuanto: parseFloat(editAmount) || 0,
-        descripcion: editDesc.trim(),
-        fecha: updatedTimestamp
-      });
-
-      setEditingItem(null);
-    } catch (err) {
-      alert('Error al actualizar: ' + err.message);
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
-  // Filtrado de items para la pestaña de historial
-  const filteredItems = useMemo(() => {
-    return rawItems.filter(item => {
-      const matchType = filterType === 'todos' || item.tipo === filterType;
-      const search = searchTerm.toLowerCase();
-      const matchSearch = !search || 
-        (item.quien && item.quien.toLowerCase().includes(search)) ||
-        (item.descripcion && item.descripcion.toLowerCase().includes(search));
-      return matchType && matchSearch;
-    });
-  }, [rawItems, filterType, searchTerm]);
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#1e293b] w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
+      <div className="bg-white dark:bg-[#1e293b] w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
         
         {/* Header Superior */}
         <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/60 dark:bg-slate-800/40">
@@ -236,26 +187,26 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
           <div className="flex items-center gap-2">
             <button
               onClick={() => { logout(); onClose(); }}
-              className="p-2 md:px-3 md:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 text-slate-500 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all"
+              className="p-2 md:px-3 md:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40 text-slate-500 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               title="Cerrar Sesión"
             >
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Cerrar Sesión</span>
+              <span className="hidden sm:inline">Salir</span>
             </button>
             <button 
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Barra de Pestañas (Tabs) */}
-        <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 px-4 pt-2 gap-2 overflow-x-auto">
+        {/* Barra de Pestañas */}
+        <div className="flex border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/20 px-3 md:px-4 pt-2 gap-1.5 md:gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('deposito')}
-            className={`flex items-center gap-2 py-3 px-4 font-bold text-xs md:text-sm border-b-2 transition-all shrink-0 ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 md:py-3 md:px-4 font-bold text-xs md:text-sm border-b-2 transition-all cursor-pointer shrink-0 ${
               activeTab === 'deposito'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-[#1e293b] rounded-t-xl shadow-sm'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
@@ -267,7 +218,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
           <button
             onClick={() => setActiveTab('gasto')}
-            className={`flex items-center gap-2 py-3 px-4 font-bold text-xs md:text-sm border-b-2 transition-all shrink-0 ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 md:py-3 md:px-4 font-bold text-xs md:text-sm border-b-2 transition-all cursor-pointer shrink-0 ${
               activeTab === 'gasto'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-[#1e293b] rounded-t-xl shadow-sm'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
@@ -279,23 +230,23 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
           <button
             onClick={() => setActiveTab('historial')}
-            className={`flex items-center gap-2 py-3 px-4 font-bold text-xs md:text-sm border-b-2 transition-all shrink-0 ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 md:py-3 md:px-4 font-bold text-xs md:text-sm border-b-2 transition-all cursor-pointer shrink-0 ${
               activeTab === 'historial'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-white dark:bg-[#1e293b] rounded-t-xl shadow-sm'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
             }`}
           >
             <History className="w-4 h-4 text-blue-500" />
-            <span>Historial y Gestión ({rawItems.length})</span>
+            <span>Historial / Eliminar ({rawItems.length})</span>
           </button>
         </div>
 
-        {/* Contenido de las Pestañas */}
+        {/* Contenido de Formularios */}
         <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-slate-50/20 dark:bg-transparent">
           
-          {/* TAB 1: REGISTRAR DEPÓSITO */}
+          {/* TAB 1: REGISTRAR CUOTA */}
           {activeTab === 'deposito' && (
-            <form onSubmit={handleCreateDeposit} className="space-y-4 max-w-xl mx-auto py-2">
+            <form onSubmit={handleCreateDeposit} className="space-y-4 max-w-md mx-auto py-2">
               {depSuccessMsg && (
                 <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-in fade-in">
                   <Check className="w-4 h-4" />
@@ -303,36 +254,22 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                 </div>
               )}
 
-              {/* Familiar */}
+              {/* Selector cerrado de hermanos */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Familiar / Persona
+                  Hermano / Familiar
                 </label>
                 <select
                   value={depPerson}
                   onChange={(e) => setDepPerson(e.target.value)}
                   required
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                 >
-                  <option value="">-- Seleccionar Persona --</option>
+                  <option value="">-- Selecciona un hermano --</option>
                   {familyMembers.map((fam, idx) => (
                     <option key={idx} value={fam}>{fam}</option>
                   ))}
-                  <option value="__otro__">➕ Otro familiar (Escribir nombre)...</option>
                 </select>
-
-                {depPerson === '__otro__' && (
-                  <div className="mt-2 animate-in fade-in">
-                    <input
-                      type="text"
-                      value={depCustomPerson}
-                      onChange={(e) => setDepCustomPerson(e.target.value)}
-                      placeholder="Escribe el nombre completo..."
-                      required
-                      className="w-full p-3 rounded-xl border border-blue-400 dark:border-blue-600 bg-blue-50/30 dark:bg-blue-950/20 text-slate-800 dark:text-slate-100 text-sm outline-none"
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Mes y Año de la Cuota */}
@@ -344,7 +281,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   <select
                     value={depMonth}
                     onChange={(e) => setDepMonth(parseInt(e.target.value))}
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                   >
                     {MESES.map((mes, idx) => (
                       <option key={idx} value={idx}>{mes}</option>
@@ -359,7 +296,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   <select
                     value={depYear}
                     onChange={(e) => setDepYear(e.target.value)}
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                   >
                     <option value="2024">2024</option>
                     <option value="2025">2025</option>
@@ -391,7 +328,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                       key={val}
                       type="button"
                       onClick={() => setDepAmount(val)}
-                      className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
                         depAmount === val
                           ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 font-bold'
                           : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -412,7 +349,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   type="text"
                   value={depDesc}
                   onChange={(e) => setDepDesc(e.target.value)}
-                  placeholder={`Ej: Cuota ${MESES[depMonth]} o Depósito Nequi`}
+                  placeholder={`Ej: Cuota ${MESES[depMonth]} o Aporte por Nequi`}
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -425,7 +362,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                 {depSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Guardando Aporte...</span>
+                    <span>Guardando Cuota...</span>
                   </>
                 ) : (
                   <>
@@ -439,7 +376,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
           {/* TAB 2: REGISTRAR GASTO */}
           {activeTab === 'gasto' && (
-            <form onSubmit={handleCreateExpense} className="space-y-4 max-w-xl mx-auto py-2">
+            <form onSubmit={handleCreateExpense} className="space-y-4 max-w-md mx-auto py-2">
               {gasSuccessMsg && (
                 <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold animate-in fade-in">
                   <Check className="w-4 h-4" />
@@ -456,7 +393,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   type="text"
                   value={gasDesc}
                   onChange={(e) => setGasDesc(e.target.value)}
-                  placeholder="Ej: Pago de recibo de agua, Pintura fachada..."
+                  placeholder="Ej: Pago de recibo de agua, Reparación..."
                   required
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
                 />
@@ -465,32 +402,19 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
               {/* Responsable del Gasto */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Responsable / Quién realizó el gasto
+                  Responsable del Gasto *
                 </label>
                 <select
                   value={gasPerson}
                   onChange={(e) => setGasPerson(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                  required
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer"
                 >
-                  <option value="Fondo Común">Fondo Común</option>
+                  <option value="">-- Selecciona un hermano --</option>
                   {familyMembers.map((fam, idx) => (
                     <option key={idx} value={fam}>{fam}</option>
                   ))}
-                  <option value="__otro__">➕ Otra persona...</option>
                 </select>
-
-                {gasPerson === '__otro__' && (
-                  <div className="mt-2 animate-in fade-in">
-                    <input
-                      type="text"
-                      value={gasCustomPerson}
-                      onChange={(e) => setGasCustomPerson(e.target.value)}
-                      placeholder="Escribe el nombre del responsable..."
-                      required
-                      className="w-full p-3 rounded-xl border border-rose-400 dark:border-rose-600 bg-rose-50/30 dark:bg-rose-950/20 text-slate-800 dark:text-slate-100 text-sm outline-none"
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Monto y Fecha */}
@@ -546,29 +470,29 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
             </form>
           )}
 
-          {/* TAB 3: HISTORIAL Y GESTIÓN */}
+          {/* TAB 3: HISTORIAL Y ELIMINACIÓN */}
           {activeTab === 'historial' && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-1">
               
               {/* Filtros de Búsqueda */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <div className="relative flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por familiar o descripción..."
+                    placeholder="Buscar por hermano o descripción..."
                     className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs sm:text-sm outline-none"
                   />
                 </div>
 
-                <div className="flex gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0">
                   {['todos', 'deposito', 'gasto'].map(tipo => (
                     <button
                       key={tipo}
                       onClick={() => setFilterType(tipo)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
                         filterType === tipo
                           ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400'
                           : 'text-slate-400 hover:text-slate-600'
@@ -580,11 +504,11 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                 </div>
               </div>
 
-              {/* Lista de Movimientos */}
-              <div className="space-y-2.5">
+              {/* Lista de Registros */}
+              <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
                 {filteredItems.length === 0 ? (
                   <p className="text-center py-10 text-slate-400 text-sm">
-                    No se encontraron movimientos registrados con esos filtros.
+                    No hay movimientos que coincidan con la búsqueda.
                   </p>
                 ) : (
                   filteredItems.map((item) => {
@@ -597,15 +521,15 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                     return (
                       <div 
                         key={item.id} 
-                        className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm"
+                        className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3 shadow-sm hover:border-slate-300 dark:hover:border-slate-600 transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${
+                          <div className={`p-2 rounded-xl shrink-0 ${
                             isGasto 
                               ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400' 
                               : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                           }`}>
-                            {isGasto ? <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
+                            {isGasto ? <TrendingDown className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
                           </div>
 
                           <div className="min-w-0">
@@ -613,7 +537,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                               <p className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">
                                 {item.quien || 'Sin Nombre'}
                               </p>
-                              <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
                                 isGasto 
                                   ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' 
                                   : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
@@ -623,54 +547,44 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                             </div>
 
                             <p className="text-[11px] text-slate-400 truncate">
-                              {item.descripcion || (isGasto ? 'Sin concepto' : 'Aporte mensual')} • {fechaLegible}
+                              {item.descripcion || (isGasto ? 'Gasto general' : 'Aporte')} • {fechaLegible}
                             </p>
                           </div>
                         </div>
 
-                        {/* Monto y Botones de Acción */}
-                        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                          <p className={`font-black text-xs sm:text-base ${
+                        {/* Monto y Botón de Eliminación */}
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                          <p className={`font-black text-xs sm:text-sm ${
                             isGasto ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                           }`}>
                             {formatMoney(item.cuanto)}
                           </p>
 
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => startEdit(item)}
-                              className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors"
-                              title="Editar movimiento"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-
-                            {deleteConfirmId === item.id ? (
-                              <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 p-1 rounded-xl">
-                                <button
-                                  onClick={() => handleDeleteItem(item.id)}
-                                  disabled={deletingId === item.id}
-                                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg transition-all"
-                                >
-                                  {deletingId === item.id ? '...' : 'Confirmar'}
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(null)}
-                                  className="p-1 text-slate-400 hover:text-slate-600 text-xs"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
+                          {deleteConfirmId === item.id ? (
+                            <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/60 p-1 rounded-xl animate-in fade-in">
                               <button
-                                onClick={() => setDeleteConfirmId(item.id)}
-                                className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-rose-500 transition-colors"
-                                title="Eliminar movimiento"
+                                onClick={() => handleDeleteItem(item.id)}
+                                disabled={deletingId === item.id}
+                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {deletingId === item.id ? '...' : '¿Eliminar?'}
                               </button>
-                            )}
-                          </div>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="p-1 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirmId(item.id)}
+                              className="p-1.5 sm:p-2 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                              title="Eliminar este registro"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
 
                       </div>
@@ -685,91 +599,6 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
         </div>
 
       </div>
-
-      {/* SUB-MODAL DE EDICIÓN */}
-      {editingItem && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-[#1e293b] w-full max-w-md rounded-3xl p-5 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-            
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 text-base">
-                <Edit3 className="w-4 h-4 text-blue-500" />
-                Editar Movimiento
-              </h3>
-              <button 
-                onClick={() => setEditingItem(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Nombre / Responsable</label>
-                <input
-                  type="text"
-                  value={editPerson}
-                  onChange={(e) => setEditPerson(e.target.value)}
-                  required
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
-                <input
-                  type="number"
-                  value={editAmount}
-                  onChange={(e) => setEditAmount(e.target.value)}
-                  required
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Fecha</label>
-                <input
-                  type="date"
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  required
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 mb-1">Descripción / Concepto</label>
-                <input
-                  type="text"
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingItem(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-500"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={editSubmitting}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all disabled:opacity-50"
-                >
-                  {editSubmitting ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

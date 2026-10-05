@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info, ShieldCheck, Lock } from 'lucide-react';
+import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info, ShieldCheck, Lock, Search } from 'lucide-react';
 import { usePayments } from './hooks/usePayments';
 import { useAuth } from './context/AuthContext';
 import PaymentCalculator from './PaymentCalculator';
@@ -17,6 +17,10 @@ const App = () => {
   const [showAdminModal, setShowAdminModal] = useState(false);
 
   const [showExpensesModal, setShowExpensesModal] = useState(false);
+  const [showIncomeModal, setShowIncomeModal] = useState(false);
+  const [incomeSearch, setIncomeSearch] = useState('');
+  const [incomePersonFilter, setIncomePersonFilter] = useState('');
+
   const { matrix, total, finances, rawItems, loading } = usePayments(year);
 
   useEffect(() => {
@@ -70,6 +74,15 @@ const App = () => {
     if (!name) return '';
     return name.split(' ').map(word => word.charAt(0).toUpperCase()).join('.') + '.';
   };
+
+  const filteredIngresos = (finances?.detalleIngresos || []).filter(item => {
+    const matchPerson = !incomePersonFilter || item.quien === incomePersonFilter;
+    const search = incomeSearch.toLowerCase().trim();
+    const matchSearch = !search || 
+      (item.quien && item.quien.toLowerCase().includes(search)) ||
+      (item.descripcion && item.descripcion.toLowerCase().includes(search));
+    return matchPerson && matchSearch;
+  });
 
   if (loading) {
     return (
@@ -168,10 +181,16 @@ const App = () => {
 
         {/* Resumen Financiero */}
         <div className="grid grid-cols-3 gap-2 md:gap-6">
-          <div className="bg-white dark:bg-[#1e293b] p-2 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div 
+            onClick={() => setShowIncomeModal(true)}
+            className="group bg-white dark:bg-[#1e293b] p-2 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all relative"
+          >
+            <div className="absolute top-2 right-2 md:top-4 md:right-4 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 transition-colors">
+              <Info className="w-3 h-3 md:w-5 md:h-5" />
+            </div>
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
-              <TrendingUp className="text-emerald-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block" />
-              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest">Ingresos</p>
+              <TrendingUp className="text-emerald-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-emerald-600 transition-colors" />
+              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-emerald-500 transition-colors">Ingresos</p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatMoney(finances?.ingresos)}</p>
           </div>
@@ -340,20 +359,118 @@ const App = () => {
         </div>
       )}
 
-      {/* Modales de Administración */}
-      <AdminLoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onSuccess={() => setShowAdminModal(true)}
-      />
+      {/* Modal de Ingresos con Filtros */}
+      {showIncomeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-[#1e293b] w-full max-w-md md:max-w-2xl rounded-3xl md:rounded-[2rem] shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-700/50 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="p-2 md:p-3 bg-emerald-100 dark:bg-emerald-500/20 rounded-xl md:rounded-2xl text-emerald-600 dark:text-emerald-400">
+                  <TrendingUp className="w-5 h-5 md:w-7 md:h-7" />
+                </div>
+                <div>
+                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Ingresos</h3>
+                  <p className="text-[10px] md:text-sm text-slate-400">
+                    Aportes y cuotas recibidas ({filteredIngresos.length})
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowIncomeModal(false)} 
+                className="p-2 md:p-3 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+            </div>
 
-      <AdminDashboardModal
-        isOpen={showAdminModal}
-        onClose={() => setShowAdminModal(false)}
-        matrix={matrix}
-        rawItems={rawItems}
-        currentYear={year}
-      />
+            {/* Barra de Filtros */}
+            <div className="p-3 md:p-4 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/40 dark:bg-slate-800/20 flex flex-col sm:flex-row gap-2.5">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={incomeSearch}
+                  onChange={(e) => setIncomeSearch(e.target.value)}
+                  placeholder="Buscar por hermano o concepto..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs sm:text-sm outline-none"
+                />
+              </div>
+
+              <select
+                value={incomePersonFilter}
+                onChange={(e) => setIncomePersonFilter(e.target.value)}
+                className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs sm:text-sm outline-none cursor-pointer"
+              >
+                <option value="">Todos los hermanos</option>
+                {matrix.map((p, idx) => (
+                  <option key={idx} value={p.originalName || p.displayName}>
+                    {p.displayName || p.originalName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Lista de Aportes */}
+            <div className="p-4 md:p-6 overflow-y-auto flex-1 bg-slate-50/30 dark:bg-transparent">
+              {filteredIngresos.length > 0 ? (
+                <div className="space-y-3 md:space-y-4">
+                  {filteredIngresos.map((ingreso, i) => (
+                    <div key={i} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 md:p-6 bg-white dark:bg-slate-800/40 rounded-2xl md:rounded-3xl border border-slate-100 dark:border-slate-700/50 shadow-sm gap-2">
+                      <div className="pr-4 flex-1">
+                        <p className="font-bold text-sm md:text-lg text-slate-700 dark:text-slate-200 leading-tight">
+                          {ingreso.descripcion}
+                        </p>
+                        <p className="text-[11px] md:text-sm text-slate-500 dark:text-slate-400 mt-1 md:mt-2 flex items-center gap-1.5 font-medium">
+                          <User size={14} className="text-emerald-500" />
+                          {ingreso.quien}
+                        </p>
+                        <p className="text-[10px] md:text-sm text-slate-400 mt-1.5 md:mt-2 font-medium tracking-wide flex items-center gap-1">
+                          <CalendarDays size={14} />
+                          {new Date(ingreso.fecha).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="text-left sm:text-right w-full sm:w-auto flex flex-row sm:flex-col justify-between sm:justify-end items-center sm:items-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-slate-100 dark:border-slate-700/50 sm:border-0">
+                        <p className="font-black text-emerald-600 dark:text-emerald-400 text-base md:text-2xl">
+                          +{formatMoney(ingreso.monto)}
+                        </p>
+                        <span className="text-[9px] md:text-xs uppercase tracking-widest font-bold px-2 md:px-3 py-0.5 md:py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-md mt-1 md:mt-2">
+                          Aporte
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 md:py-20 text-slate-400">
+                  <TrendingUp className="w-12 h-12 md:w-20 md:h-20 mb-3 opacity-20" />
+                  <p className="text-sm md:text-lg font-medium">No se encontraron aportes registrados</p>
+                </div>
+              )}
+            </div>
+            
+          </div>
+        </div>
+      )}
+
+      {/* Modales de Administración */}
+      {showLoginModal && (
+        <AdminLoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSuccess={() => setShowAdminModal(true)}
+        />
+      )}
+
+      {showAdminModal && (
+        <AdminDashboardModal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+          matrix={matrix}
+          rawItems={rawItems}
+          currentYear={year}
+        />
+      )}
 
     </div>
   );

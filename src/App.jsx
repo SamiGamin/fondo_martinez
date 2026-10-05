@@ -129,7 +129,7 @@ const App = () => {
             <div className="flex items-center gap-1.5 md:hidden">
               {/* Botón Descargar PDF Móvil */}
               <button 
-                onClick={() => exportFondoPdf({ matrix, finances, year, total })} 
+                onClick={() => exportFondoPdf({ rawItems, availableYears, finances, currentSelectedYear: year, matrix, total })} 
                 className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-all cursor-pointer"
                 title="Descargar Reporte PDF"
               >
@@ -154,7 +154,7 @@ const App = () => {
           <div className="flex items-center gap-2 md:gap-3">
             {/* Botón Descargar PDF Desktop */}
             <button
-              onClick={() => exportFondoPdf({ matrix, finances, year, total })}
+              onClick={() => exportFondoPdf({ rawItems, availableYears, finances, currentSelectedYear: year, matrix, total })}
               className="hidden md:flex items-center gap-2 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/80 rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer shadow-sm"
               title="Descargar Reporte en PDF"
             >
@@ -264,7 +264,7 @@ const App = () => {
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingUp className="text-emerald-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-emerald-600 transition-colors" />
               <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-emerald-500 transition-colors">
-                Ingresos {year}
+                Ingresos
               </p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatMoney(finances?.ingresos)}</p>
@@ -280,7 +280,7 @@ const App = () => {
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingDown className="text-rose-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-rose-600 transition-colors" />
               <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-rose-500 transition-colors">
-                Gastos {year}
+                Gastos
               </p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-rose-600 dark:text-rose-400 truncate">{formatMoney(finances?.gastos)}</p>
@@ -328,7 +328,7 @@ const App = () => {
               </p>
             </div>
             <button
-              onClick={() => exportFondoPdf({ matrix, finances, year, total })}
+              onClick={() => exportFondoPdf({ rawItems, availableYears, finances, currentSelectedYear: year, matrix, total })}
               className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <FileDown className="w-4 h-4" />
@@ -402,9 +402,9 @@ const App = () => {
                   <TrendingDown className="w-5 h-5 md:w-7 md:h-7" />
                 </div>
                 <div>
-                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Gastos ({year})</h3>
+                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Gastos</h3>
                   <p className="text-[10px] md:text-sm text-slate-400">
-                    Gastos del año {year} • Total: {formatMoney(finances?.gastos)}
+                    Total Gastos Realizados: {formatMoney(finances?.gastos)}
                   </p>
                 </div>
               </div>
@@ -468,9 +468,9 @@ const App = () => {
                   <TrendingUp className="w-5 h-5 md:w-7 md:h-7" />
                 </div>
                 <div>
-                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Ingresos ({year})</h3>
+                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Ingresos</h3>
                   <p className="text-[10px] md:text-sm text-slate-400">
-                    Aportes del año {year} ({filteredIngresos.length}) • Total: {formatMoney(finances?.ingresos)}
+                    Total Aportes Recibidos ({filteredIngresos.length}): {formatMoney(finances?.ingresos)}
                   </p>
                 </div>
               </div>

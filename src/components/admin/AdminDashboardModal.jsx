@@ -34,6 +34,12 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
   const [depSubmitting, setDepSubmitting] = useState(false);
   const [depSuccessMsg, setDepSuccessMsg] = useState('');
 
+  useEffect(() => {
+    if (currentYear) {
+      setDepYear(currentYear);
+    }
+  }, [currentYear]);
+
   // --- Estado Formulario Gasto ---
   const [gasPerson, setGasPerson] = useState('');
   const [gasDesc, setGasDesc] = useState('');

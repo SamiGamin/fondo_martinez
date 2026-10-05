@@ -22,7 +22,9 @@ export const usePayments = (year) => {
 
       const rawList = Object.entries(rawJson || {}).map(([key, val]) => ({
         ...val,
-        id: val.id || key
+        originalId: val.id,
+        id: key,
+        firebaseKey: key
       })).sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
 
       setData({

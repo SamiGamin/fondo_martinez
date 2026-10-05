@@ -36,5 +36,10 @@ export const transformJsonToMatrix = (rawJson, selectedYear) => {
     months: Array.from({ length: 12 }, (_, m) => paymentsSet.has(`${normalizar(name)}-${m}`))
   }));
 
-  return { matrix, total: pagosDelAño.length };
+  return { 
+    matrix, 
+    total: paymentsSet.size,
+    totalCuotas: paymentsSet.size,
+    totalDepositos: pagosDelAño.length 
+  };
 };

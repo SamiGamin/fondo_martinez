@@ -79,19 +79,22 @@ export const calculateFinances = (rawJson, selectedYear) => {
   detalleIngresosAño.sort(sortByDateDesc);
 
   return {
-    // Si se pasa selectedYear, ingresos y gastos son de ese año
-    ingresos: targetYear ? ingresosAño : ingresosTotal,
-    gastos: targetYear ? gastosAño : gastosTotal,
-    // El saldo real en caja siempre es el acumulado total
+    // Los saldos principales SIEMPRE reflejan la totalidad sin importar el año
+    // De esta manera: Ingresos - Gastos = Saldo Real SIEMPRE COINCIDE
+    ingresos: ingresosTotal,
+    gastos: gastosTotal,
     balance: ingresosTotal - gastosTotal,
-    ingresosAño,
-    gastosAño,
-    balanceAño: ingresosAño - gastosAño,
     ingresosTotal,
     gastosTotal,
     balanceTotal: ingresosTotal - gastosTotal,
-    detalleGastos: targetYear ? detalleGastosAño : detalleGastosTotal,
-    detalleIngresos: targetYear ? detalleIngresosAño : detalleIngresosTotal,
+    ingresosAño,
+    gastosAño,
+    balanceAño: ingresosAño - gastosAño,
+    // Detalle completo de movimientos para que cuadre exactamente con la tarjeta
+    detalleGastos: detalleGastosTotal,
+    detalleIngresos: detalleIngresosTotal,
+    detalleGastosAño,
+    detalleIngresosAño,
     detalleGastosTotal,
     detalleIngresosTotal
   };

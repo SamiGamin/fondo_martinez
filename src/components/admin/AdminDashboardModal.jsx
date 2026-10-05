@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, LogOut, PlusCircle, TrendingDown, History, 
   DollarSign, Check, Trash2, Search, Loader2, Sparkles 

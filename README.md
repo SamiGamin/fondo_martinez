@@ -272,13 +272,7 @@ firebase deploy
 
 ## 📈 Roadmap Futuro
 
-- [ ] Autenticación de usuarios
-- [ ] Reportes y exportación de datos (PDF/Excel)
-- [ ] Notificaciones de pagos pendientes
-- [ ] Editor de pagos (agregar, editar, eliminar)
-- [ ] Suporte multimoneda
-- [ ] Historial de cambios y auditoría
-- [ ] Integración con pasarelas de pago
+
 
 ## 🤝 Contribución
 

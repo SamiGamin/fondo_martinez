@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, LogOut, PlusCircle, TrendingDown, History, 
-  DollarSign, Check, Trash2, Search, Loader2, Sparkles 
+  DollarSign, Check, Trash2, Search, Loader2, Sparkles,
+  AlertCircle, Calendar, ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { createPayment, deletePayment } from '../../services/paymentService';
@@ -10,6 +11,8 @@ const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
+
+const normalizar = (t) => (t || '').trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], currentYear }) => {
   const { currentUser, logout } = useAuth();
@@ -27,18 +30,102 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
   // --- Estado Formulario Depósito ---
   const [depPerson, setDepPerson] = useState('');
-  const [depYear, setDepYear] = useState(currentYear || new Date().getFullYear());
+  const [depYear, setDepYear] = useState(parseInt(currentYear) || new Date().getFullYear());
   const [depMonth, setDepMonth] = useState(new Date().getMonth());
   const [depAmount, setDepAmount] = useState('50000');
   const [depDesc, setDepDesc] = useState('');
   const [depSubmitting, setDepSubmitting] = useState(false);
   const [depSuccessMsg, setDepSuccessMsg] = useState('');
 
-  useEffect(() => {
-    if (currentYear) {
-      setDepYear(currentYear);
+  // Obtiene el último pago registrado de una persona en toda la base de datos
+  const getLastPaymentOfPerson = (personName) => {
+    if (!personName) return null;
+    const norm = normalizar(personName);
+    const personDeposits = (rawItems || []).filter(item => 
+      item.tipo === 'deposito' && item.fecha && normalizar(item.quien) === norm
+    );
+
+    if (personDeposits.length === 0) return null;
+
+    // Ordenar de forma cronológica ascendente
+    personDeposits.sort((a, b) => {
+      const da = new Date(a.fecha);
+      const db = new Date(b.fecha);
+      return (da.getFullYear() * 12 + da.getMonth()) - (db.getFullYear() * 12 + db.getMonth());
+    });
+
+    const latest = personDeposits[personDeposits.length - 1];
+    const date = new Date(latest.fecha);
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      timestamp: latest.fecha
+    };
+  };
+
+  // Calcula el mes y año consecutivo al último pago registrado
+  const getNextMonthToPay = (personName) => {
+    const last = getLastPaymentOfPerson(personName);
+    if (!last) {
+      return {
+        year: parseInt(currentYear) || new Date().getFullYear(),
+        month: 0 // Enero
+      };
     }
-  }, [currentYear]);
+
+    if (last.month === 11) {
+      return {
+        year: last.year + 1,
+        month: 0 // Enero del año siguiente
+      };
+    } else {
+      return {
+        year: last.year,
+        month: last.month + 1
+      };
+    }
+  };
+
+  // Al seleccionar el hermano, se calcula automáticamente el mes siguiente al último pagado
+  const handleSelectPerson = (person) => {
+    setDepPerson(person);
+    if (!person) return;
+    const next = getNextMonthToPay(person);
+    setDepMonth(next.month);
+    setDepYear(next.year);
+  };
+
+  // Meses ya pagados por la persona en el año seleccionado
+  const paidMonthsForSelectedPersonAndYear = useMemo(() => {
+    if (!depPerson) return new Set();
+    const normPerson = normalizar(depPerson);
+    const paidSet = new Set();
+    
+    (rawItems || []).forEach(item => {
+      if (item.tipo === 'deposito' && item.fecha && normalizar(item.quien) === normPerson) {
+        const d = new Date(item.fecha);
+        if (d.getFullYear() === parseInt(depYear)) {
+          paidSet.add(d.getMonth());
+        }
+      }
+    });
+    return paidSet;
+  }, [rawItems, depPerson, depYear]);
+
+  // Indicador si el mes actualmente seleccionado ya tiene un pago registrado
+  const isCurrentMonthAlreadyPaid = depPerson ? paidMonthsForSelectedPersonAndYear.has(parseInt(depMonth)) : false;
+
+  // Información del último pago de la persona seleccionada
+  const lastPaymentInfo = useMemo(() => {
+    if (!depPerson) return null;
+    return getLastPaymentOfPerson(depPerson);
+  }, [depPerson, rawItems]);
+
+  useEffect(() => {
+    if (currentYear && !depPerson) {
+      setDepYear(parseInt(currentYear));
+    }
+  }, [currentYear, depPerson]);
 
   // --- Estado Formulario Gasto ---
   const [gasPerson, setGasPerson] = useState('');
@@ -81,6 +168,13 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
       alert('Por favor selecciona un hermano de la lista');
       return;
     }
+
+    // BLOQUEO ESTRICTO: No permitir registrar si el mes ya está pagado
+    if (isCurrentMonthAlreadyPaid) {
+      alert(`⚠️ Acción bloqueada: ${depPerson} ya tiene una cuota registrada en ${MESES[depMonth]} de ${depYear}. No se permiten pagos duplicados.`);
+      return;
+    }
+
     const amountNum = parseFloat(depAmount);
     if (!amountNum || amountNum <= 0) {
       alert('Por favor ingresa un monto válido');
@@ -102,8 +196,17 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
         descripcion: defaultDesc
       });
 
-      setDepSuccessMsg(`¡Aporte de ${depPerson} (${MESES[depMonth]}) registrado con éxito!`);
+      setDepSuccessMsg(`¡Aporte de ${depPerson} (${MESES[depMonth]} ${depYear}) registrado con éxito!`);
       setDepDesc('');
+
+      // Avanzar automáticamente al siguiente mes consecutivo
+      if (parseInt(depMonth) === 11) {
+        setDepMonth(0);
+        setDepYear(prev => parseInt(prev) + 1);
+      } else {
+        setDepMonth(prev => parseInt(prev) + 1);
+      }
+
       setTimeout(() => setDepSuccessMsg(''), 4000);
     } catch (err) {
       alert('Error al guardar el depósito: ' + err.message);
@@ -267,7 +370,7 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                 </label>
                 <select
                   value={depPerson}
-                  onChange={(e) => setDepPerson(e.target.value)}
+                  onChange={(e) => handleSelectPerson(e.target.value)}
                   required
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                 >
@@ -276,6 +379,26 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                     <option key={idx} value={fam}>{fam}</option>
                   ))}
                 </select>
+
+                {/* Banner de estado del hermano seleccionado */}
+                {depPerson && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                      <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                      <span>
+                        {lastPaymentInfo ? (
+                          <>Último pago: <strong className="text-slate-800 dark:text-slate-100">{MESES[lastPaymentInfo.month]} {lastPaymentInfo.year}</strong></>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">Sin cuotas previas en el sistema</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <ArrowRight className="w-3.5 h-3.5 shrink-0" />
+                      <span>Siguiente: {MESES[depMonth]} {depYear}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Mes y Año de la Cuota */}
@@ -287,11 +410,20 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   <select
                     value={depMonth}
                     onChange={(e) => setDepMonth(parseInt(e.target.value))}
-                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
+                    className={`w-full p-3 rounded-xl border text-sm outline-none cursor-pointer ${
+                      isCurrentMonthAlreadyPaid
+                        ? 'border-rose-400 dark:border-rose-600 bg-rose-50/50 dark:bg-rose-950/20 text-rose-700 dark:text-rose-300 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500'
+                    }`}
                   >
-                    {MESES.map((mes, idx) => (
-                      <option key={idx} value={idx}>{mes}</option>
-                    ))}
+                    {MESES.map((mes, idx) => {
+                      const isPaid = paidMonthsForSelectedPersonAndYear.has(idx);
+                      return (
+                        <option key={idx} value={idx} disabled={isPaid}>
+                          {mes} {isPaid ? '✓ (Ya registrado)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -301,16 +433,25 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
                   </label>
                   <select
                     value={depYear}
-                    onChange={(e) => setDepYear(e.target.value)}
+                    onChange={(e) => setDepYear(parseInt(e.target.value))}
                     className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                   >
-                    <option value="2024">2024</option>
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
-                    <option value="2027">2027</option>
+                    {[2024, 2025, 2026, 2027, 2028].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
                   </select>
                 </div>
               </div>
+
+              {/* Alerta de bloqueo si el mes ya está pagado */}
+              {isCurrentMonthAlreadyPaid && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs font-bold animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>
+                    {depPerson} ya tiene registrada la cuota de {MESES[depMonth]} {depYear}. No es posible registrar un pago duplicado.
+                  </span>
+                </div>
+              )}
 
               {/* Monto con atajos rápidos */}
               <div>
@@ -362,18 +503,27 @@ const AdminDashboardModal = ({ isOpen, onClose, matrix = [], rawItems = [], curr
 
               <button
                 type="submit"
-                disabled={depSubmitting}
-                className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-4 cursor-pointer"
+                disabled={depSubmitting || isCurrentMonthAlreadyPaid || !depPerson}
+                className={`w-full py-3.5 px-4 font-bold text-sm rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all mt-4 cursor-pointer ${
+                  isCurrentMonthAlreadyPaid || !depPerson
+                    ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed shadow-none'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                } disabled:opacity-50`}
               >
                 {depSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Guardando Cuota...</span>
                   </>
+                ) : isCurrentMonthAlreadyPaid ? (
+                  <>
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Mes ya registrado (Bloqueado)</span>
+                  </>
                 ) : (
                   <>
                     <PlusCircle className="w-4 h-4" />
-                    <span>Guardar Cuota en Firebase</span>
+                    <span>Guardar Cuota ({depPerson ? `${MESES[depMonth]} ${depYear}` : 'Selecciona hermano'})</span>
                   </>
                 )}
               </button>

@@ -1,7 +1,7 @@
-// src/api/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 /**
  * Configuración de Firebase desde variables de entorno
@@ -48,3 +48,6 @@ export const analytics = getAnalytics(app);
 
 // Inicializar y exportar la Base de Datos para usarla en los servicios
 export const db = getDatabase(app);
+
+// Inicializar y exportar el servicio de autenticación
+export const auth = getAuth(app);

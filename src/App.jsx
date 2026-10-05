@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info } from 'lucide-react';
+import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info, ShieldCheck, Lock } from 'lucide-react';
 import { usePayments } from './hooks/usePayments';
+import { useAuth } from './context/AuthContext';
 import PaymentCalculator from './PaymentCalculator';
+import AdminLoginModal from './components/admin/AdminLoginModal';
+import AdminDashboardModal from './components/admin/AdminDashboardModal';
 
 const App = () => {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -9,8 +12,12 @@ const App = () => {
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
   
+  const { isAdmin } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+
   const [showExpensesModal, setShowExpensesModal] = useState(false);
-  const { matrix, total, finances, loading } = usePayments(year);
+  const { matrix, total, finances, rawItems, loading } = usePayments(year);
 
   useEffect(() => {
     if (darkMode) {
@@ -88,11 +95,46 @@ const App = () => {
                 <p className="text-[10px] md:text-sm text-slate-400">Aportes en tiempo real</p>
               </div>
             </div>
-            <button onClick={() => setDarkMode(!darkMode)} className="md:hidden p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
-              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+            <div className="flex items-center gap-1.5 md:hidden">
+              <button 
+                onClick={() => isAdmin ? setShowAdminModal(true) : setShowLoginModal(true)} 
+                className={`p-2 rounded-lg transition-all ${
+                  isAdmin 
+                    ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                }`}
+                title={isAdmin ? "Panel Admin" : "Acceso Administrador"}
+              >
+                {isAdmin ? <ShieldCheck size={18} /> : <Lock size={18} />}
+              </button>
+              <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
+            {/* Botón Admin Desktop */}
+            <div className="hidden md:flex">
+              {isAdmin ? (
+                <button
+                  onClick={() => setShowAdminModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs md:text-sm font-bold hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Panel Admin</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="flex items-center gap-2 px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
+                  title="Acceso Administrador"
+                >
+                  <Lock className="w-4 h-4 text-slate-400" />
+                  <span>Admin</span>
+                </button>
+              )}
+            </div>
+
             <div className="hidden md:flex p-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl">
               <button onClick={() => setDarkMode(false)} className={`p-2 rounded-lg transition-all ${!darkMode ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400'}`}><Sun size={20} /></button>
               <button onClick={() => setDarkMode(true)} className={`p-2 rounded-lg transition-all ${darkMode ? 'bg-slate-700 shadow-sm text-yellow-400' : 'text-slate-400'}`}><Moon size={20} /></button>
@@ -297,6 +339,21 @@ const App = () => {
           </div>
         </div>
       )}
+
+      {/* Modales de Administración */}
+      <AdminLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={() => setShowAdminModal(true)}
+      />
+
+      <AdminDashboardModal
+        isOpen={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        matrix={matrix}
+        rawItems={rawItems}
+        currentYear={year}
+      />
 
     </div>
   );

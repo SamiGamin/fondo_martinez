@@ -5,11 +5,11 @@ import { transformJsonToMatrix } from '../utils/dataTransformers';
 import { calculateFinances } from '../utils/financeTransformers'; 
 
 export const usePayments = (year) => {
-  // 2. Iniciamos el estado con finances en 0
   const [data, setData] = useState({ 
     matrix: [], 
     total: 0, 
-    finances: { ingresos: 0, gastos: 0, balance: 0 } 
+    finances: { ingresos: 0, gastos: 0, balance: 0 },
+    rawItems: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -22,11 +22,18 @@ export const usePayments = (year) => {
       const matrixData = transformJsonToMatrix(rawJson, year);
       const financesData = calculateFinances(rawJson, year);
 
+      // Convertir en lista para el panel de administración
+      const rawList = Object.entries(rawJson || {}).map(([key, val]) => ({
+        ...val,
+        id: val.id || key
+      })).sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+
       // 4. Guardamos todo junto en el estado
       setData({
         matrix: matrixData.matrix,
         total: matrixData.totalCuotas || matrixData.total || 0, // Por si acaso
-        finances: financesData // Aquí se inyecta la plata
+        finances: financesData, // Aquí se inyecta la plata
+        rawItems: rawList
       });
       
       setLoading(false);

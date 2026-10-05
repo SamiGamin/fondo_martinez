@@ -18,8 +18,8 @@ const formatMoney = (amount) => {
 
 /**
  * Genera un PDF maestro multianual donde CADA AÑO cabe exactamente en 1 SOLA HOJA,
- * conteniendo ambas tablas (Puntualidad y Matriz mensual) con la palabra PAGADO
- * en una sola línea horizontal nítida, sin saltos de línea ni amontonamientos.
+ * conteniendo ambas tablas (Puntualidad y Matriz mensual).
+ * Optimizado para legibilidad móvil con símbolo 'OK' y raya '—'.
  */
 export const exportFondoPdf = ({
   rawItems = [],
@@ -135,19 +135,18 @@ export const exportFondoPdf = ({
   };
 
   // Generador de configuración de columnas para la Matriz Mensual (Tabla 2)
-  // Garantiza que PAGADO no se divida nunca en 2 líneas
+  // Optimizado para legibilidad móvil con columna de nombres en 130 pt y meses en 28 pt a 8 pt
   const getMatrixColumnStyles = () => {
     const colStyles = {
       0: { halign: 'center', fontStyle: 'bold', cellWidth: 18 },
-      1: { halign: 'left', fontStyle: 'bold', cellWidth: 112 },
+      1: { halign: 'left', fontStyle: 'bold', cellWidth: 115 },
       14: { halign: 'center', fontStyle: 'bold', textColor: [30, 64, 175], cellWidth: 30 }
     };
-    // 12 meses con 34 pt de ancho y padding horizontal reducido a 1 pt
     for (let m = 2; m <= 13; m++) {
       colStyles[m] = {
-        cellWidth: 34,
+        cellWidth: 28,
         halign: 'center',
-        fontSize: 6,
+        fontSize: 8,
         cellPadding: { top: 2.2, bottom: 2.2, left: 1, right: 1 }
       };
     }
@@ -257,7 +256,7 @@ export const exportFondoPdf = ({
         },
         columnStyles: {
           0: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
-          1: { halign: 'left', fontStyle: 'bold', cellWidth: 148 },
+          1: { halign: 'left', fontStyle: 'bold', cellWidth: 80 },
           2: { halign: 'center', cellWidth: 80 },
           3: { halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52], cellWidth: 95 },
           4: { halign: 'center', cellWidth: 85 },
@@ -298,12 +297,12 @@ export const exportFondoPdf = ({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.8);
       doc.setTextColor(100, 116, 139);
-      doc.text('Visto bueno en verde (PAGADO) para cuotas canceladas y guion (-) para cuotas pendientes', boxMargin, startT2 + 14);
+      doc.text('Símbolo verde (OK) para cuotas canceladas y raya (—) para cuotas pendientes', boxMargin, startT2 + 14);
 
-      // Tabla 2: Matriz Mensual
+      // Tabla 2: Matriz Mensual (con símbolo 'OK' y pendientes '—')
       const matrixHead = [['#', 'Hermano / Familiar', ...MESES_CORTOS, 'Total']];
       const matrixBody = sortedYearData.map((row, idx) => {
-        const monthsStatus = row.months.map(paid => (paid ? 'PAGADO' : '-'));
+        const monthsStatus = row.months.map(paid => (paid ? 'OK' : '—'));
         const totalMeses = row.months.filter(Boolean).length;
         return [
           `${idx + 1}`,
@@ -315,6 +314,7 @@ export const exportFondoPdf = ({
 
       autoTable(doc, {
         startY: startT2 + 18,
+        tableWidth: 'wrap',
         margin: { left: boxMargin, right: boxMargin },
         head: matrixHead,
         body: matrixBody,
@@ -335,7 +335,8 @@ export const exportFondoPdf = ({
         columnStyles: getMatrixColumnStyles(),
         didParseCell: (data) => {
           if (data.section === 'body' && data.column.index >= 2 && data.column.index <= 13) {
-            if (data.cell.raw === 'PAGADO') {
+            const cellVal = String(data.cell.raw || '');
+            if (cellVal.includes('OK')) {
               data.cell.styles.fillColor = [220, 252, 231];
               data.cell.styles.textColor = [22, 101, 52];
               data.cell.styles.fontStyle = 'bold';
@@ -394,7 +395,7 @@ export const exportFondoPdf = ({
         },
         columnStyles: {
           0: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
-          1: { halign: 'left', fontStyle: 'bold', cellWidth: 148 },
+          1: { halign: 'left', fontStyle: 'bold', cellWidth: 80 },
           2: { halign: 'center', cellWidth: 80 },
           3: { halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52], cellWidth: 95 },
           4: { halign: 'center', cellWidth: 85 },
@@ -434,11 +435,11 @@ export const exportFondoPdf = ({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.8);
       doc.setTextColor(100, 116, 139);
-      doc.text('Cuadrícula mes a mes del año cerrado • Verde para aportes realizados y (-) para faltantes', boxMargin, startT2Past + 14);
+      doc.text('Cuadrícula mes a mes del año cerrado • Verde (OK) para cuotas canceladas y raya (—) para pendientes', boxMargin, startT2Past + 14);
 
       const matrixHeadPast = [['#', 'Hermano / Familiar', ...MESES_CORTOS, 'Total']];
       const matrixBodyPast = sortedYearData.map((row, idx) => {
-        const monthsStatus = row.months.map(paid => (paid ? 'PAGADO' : '-'));
+        const monthsStatus = row.months.map(paid => (paid ? 'OK' : '—'));
         const totalMeses = row.months.filter(Boolean).length;
         return [
           `${idx + 1}`,
@@ -450,6 +451,7 @@ export const exportFondoPdf = ({
 
       autoTable(doc, {
         startY: startT2Past + 18,
+        tableWidth: 'wrap',
         margin: { left: boxMargin, right: boxMargin },
         head: matrixHeadPast,
         body: matrixBodyPast,
@@ -470,7 +472,8 @@ export const exportFondoPdf = ({
         columnStyles: getMatrixColumnStyles(),
         didParseCell: (data) => {
           if (data.section === 'body' && data.column.index >= 2 && data.column.index <= 13) {
-            if (data.cell.raw === 'PAGADO') {
+            const cellVal = String(data.cell.raw || '');
+            if (cellVal.includes('OK')) {
               data.cell.styles.fillColor = [220, 252, 231];
               data.cell.styles.textColor = [22, 101, 52];
               data.cell.styles.fontStyle = 'bold';

@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info, ShieldCheck, Lock, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CheckCircle2, Circle, User, CalendarDays, Trophy, Moon, Sun, TrendingDown, TrendingUp, PiggyBank, X, Info, ShieldCheck, Lock, Search, FileDown, History } from 'lucide-react';
 import { usePayments } from './hooks/usePayments';
 import { useAuth } from './context/AuthContext';
 import PaymentCalculator from './PaymentCalculator';
 import AdminLoginModal from './components/admin/AdminLoginModal';
 import AdminDashboardModal from './components/admin/AdminDashboardModal';
+import { exportFondoPdf } from './utils/pdfGenerator';
 
 const App = () => {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const currentYearNum = new Date().getFullYear();
+  const [year, setYear] = useState(currentYearNum);
+  const isPastYear = parseInt(year) < currentYearNum;
+
   const [darkMode, setDarkMode] = useState(
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
@@ -22,6 +26,20 @@ const App = () => {
   const [incomePersonFilter, setIncomePersonFilter] = useState('');
 
   const { matrix, total, finances, rawItems, loading } = usePayments(year);
+
+  // Años disponibles detectados dinámicamente + actual y anterior
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set([currentYearNum, currentYearNum - 1]);
+    (rawItems || []).forEach(item => {
+      if (item.fecha) {
+        const y = new Date(item.fecha).getFullYear();
+        if (!isNaN(y) && y >= 2020 && y <= currentYearNum + 1) {
+          yearsSet.add(y);
+        }
+      }
+    });
+    return Array.from(yearsSet).sort((a, b) => b - a);
+  }, [rawItems, currentYearNum]);
 
   useEffect(() => {
     if (darkMode) {
@@ -109,6 +127,14 @@ const App = () => {
               </div>
             </div>
             <div className="flex items-center gap-1.5 md:hidden">
+              {/* Botón Descargar PDF Móvil */}
+              <button 
+                onClick={() => exportFondoPdf({ matrix, finances, year, total })} 
+                className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-all cursor-pointer"
+                title="Descargar Reporte PDF"
+              >
+                <FileDown size={18} />
+              </button>
               <button 
                 onClick={() => isAdmin ? setShowAdminModal(true) : setShowLoginModal(true)} 
                 className={`p-2 rounded-lg transition-all ${
@@ -125,7 +151,17 @@ const App = () => {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            {/* Botón Descargar PDF Desktop */}
+            <button
+              onClick={() => exportFondoPdf({ matrix, finances, year, total })}
+              className="hidden md:flex items-center gap-2 px-3.5 py-2 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/80 rounded-xl text-xs md:text-sm font-bold transition-all cursor-pointer shadow-sm"
+              title="Descargar Reporte en PDF"
+            >
+              <FileDown className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Reporte PDF</span>
+            </button>
+
             {/* Botón Admin Desktop */}
             <div className="hidden md:flex">
               {isAdmin ? (
@@ -154,13 +190,50 @@ const App = () => {
             </div>
             <div className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 md:px-5 py-1.5 md:py-3 rounded-lg md:rounded-xl border border-slate-200 dark:border-slate-700">
               <CalendarDays className="text-blue-500 w-4 h-4 md:w-5 md:h-5" />
-              <select value={year} onChange={(e) => setYear(e.target.value)} className="bg-transparent font-bold text-xs md:text-base outline-none dark:text-slate-200 cursor-pointer">
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
+              <select 
+                value={year} 
+                onChange={(e) => setYear(e.target.value)} 
+                className="bg-transparent font-bold text-xs md:text-base outline-none dark:text-slate-200 cursor-pointer"
+              >
+                {availableYears.map(y => (
+                  <option key={y} value={y}>
+                    {y === currentYearNum 
+                      ? `${y} (Actual)` 
+                      : y === currentYearNum - 1 
+                        ? `${y} (Año Anterior)` 
+                        : `Año ${y}`}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
         </header>
+
+        {/* Banner Informativo cuando se revisa un año anterior */}
+        {isPastYear && (
+          <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 p-3 md:p-4 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
+                <History className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs md:text-sm font-bold text-amber-900 dark:text-amber-200">
+                  Estás revisando el año histórico {year}
+                </p>
+                <p className="text-[11px] md:text-xs text-amber-700 dark:text-amber-400">
+                  Las cuotas, aportes, gastos y reportes mostrados corresponden a los registros cerrados de {year}.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setYear(currentYearNum)}
+              className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-auto"
+            >
+              Volver al Año Actual ({currentYearNum})
+            </button>
+          </div>
+        )}
+
         {/* Aviso de Instalación - Solo aparece si no está instalada */}
 {installPrompt && (
   <div className="bg-blue-600 p-3 rounded-2xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-4">
@@ -190,7 +263,9 @@ const App = () => {
             </div>
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingUp className="text-emerald-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-emerald-600 transition-colors" />
-              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-emerald-500 transition-colors">Ingresos</p>
+              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-emerald-500 transition-colors">
+                Ingresos {year}
+              </p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatMoney(finances?.ingresos)}</p>
           </div>
@@ -204,7 +279,9 @@ const App = () => {
             </div>
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <TrendingDown className="text-rose-500 w-3 h-3 md:w-5 md:h-5 hidden sm:block group-hover:text-rose-600 transition-colors" />
-              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-rose-500 transition-colors">Gastos</p>
+              <p className="text-[14px] md:text-xs font-black text-slate-400 uppercase tracking-tighter md:tracking-widest group-hover:text-rose-500 transition-colors">
+                Gastos {year}
+              </p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-rose-600 dark:text-rose-400 truncate">{formatMoney(finances?.gastos)}</p>
           </div>
@@ -212,7 +289,9 @@ const App = () => {
           <div className="bg-blue-600 p-2 md:p-6 rounded-2xl md:rounded-3xl shadow-lg border border-blue-500">
             <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
               <PiggyBank className="text-blue-100 w-3 h-3 md:w-5 md:h-5 hidden sm:block" />
-              <p className="text-[14px] md:text-xs font-black text-blue-100 uppercase tracking-tighter md:tracking-widest">Saldo Real</p>
+              <p className="text-[14px] md:text-xs font-black text-blue-100 uppercase tracking-tighter md:tracking-widest">
+                Saldo Real en Caja
+              </p>
             </div>
             <p className="text-[16px] sm:text-lg md:text-3xl font-black text-white truncate">{formatMoney(finances?.balance)}</p>
           </div>
@@ -239,6 +318,23 @@ const App = () => {
 
         {/* Tabla Responsiva Optimizada */}
         <section className="bg-white dark:bg-[#1e293b] rounded-2xl md:rounded-3xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/20">
+            <div>
+              <h2 className="text-sm md:text-lg font-black text-slate-800 dark:text-slate-100">
+                Aportes por Hermano ({year})
+              </h2>
+              <p className="text-[11px] md:text-xs text-slate-400">
+                Control mensual de cuotas y estado individual
+              </p>
+            </div>
+            <button
+              onClick={() => exportFondoPdf({ matrix, finances, year, total })}
+              className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer w-full sm:w-auto"
+            >
+              <FileDown className="w-4 h-4" />
+              <span>Descargar Reporte PDF</span>
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full md:min-w-[1000px] text-left border-collapse">
               <thead>
@@ -306,8 +402,10 @@ const App = () => {
                   <TrendingDown className="w-5 h-5 md:w-7 md:h-7" />
                 </div>
                 <div>
-                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Gastos</h3>
-                  <p className="text-[10px] md:text-sm text-slate-400">Movimientos realizados</p>
+                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Gastos ({year})</h3>
+                  <p className="text-[10px] md:text-sm text-slate-400">
+                    Gastos del año {year} • Total: {formatMoney(finances?.gastos)}
+                  </p>
                 </div>
               </div>
               <button 
@@ -370,9 +468,9 @@ const App = () => {
                   <TrendingUp className="w-5 h-5 md:w-7 md:h-7" />
                 </div>
                 <div>
-                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Ingresos</h3>
+                  <h3 className="font-bold md:text-xl text-slate-800 dark:text-slate-100">Historial de Ingresos ({year})</h3>
                   <p className="text-[10px] md:text-sm text-slate-400">
-                    Aportes y cuotas recibidas ({filteredIngresos.length})
+                    Aportes del año {year} ({filteredIngresos.length}) • Total: {formatMoney(finances?.ingresos)}
                   </p>
                 </div>
               </div>

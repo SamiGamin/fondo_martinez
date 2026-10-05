@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calculator, User, Calendar, DollarSign, Target } from 'lucide-react';
 
 const PaymentCalculator = ({ matrix, year }) => {
   const [selectedPerson, setSelectedPerson] = useState('');
   const [monthlyAmount, setMonthlyAmount] = useState('');
-  const [selectedTargetMonth, setSelectedTargetMonth] = useState(new Date().getMonth()); // Mes actual por defecto
-
   const currentMonth = new Date().getMonth(); // 0-11
   const currentYear = new Date().getFullYear();
+  const isPastYear = parseInt(year) < currentYear;
+
+  const [selectedTargetMonth, setSelectedTargetMonth] = useState(isPastYear ? 11 : currentMonth);
+
+  useEffect(() => {
+    if (isPastYear) {
+      setSelectedTargetMonth(11);
+    } else {
+      setSelectedTargetMonth(new Date().getMonth());
+    }
+  }, [year, isPastYear]);
 
   const getLastPaidMonth = (person) => {
     const personData = matrix.find(p => p.originalName === person || p.displayName === person);
@@ -45,7 +54,14 @@ const PaymentCalculator = ({ matrix, year }) => {
         <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
           <Calculator className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Calculadora de Pagos</h3>
+        <div>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Calculadora de Pagos ({year})</h3>
+          {isPastYear && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              Calculando balance para el año cerrado {year} (evaluado a Diciembre)
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">

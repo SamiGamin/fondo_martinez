@@ -1,48 +1,98 @@
-export const calculateFinances = (rawJson) => {
-  if (!rawJson) return { ingresos: 0, gastos: 0, balance: 0, detalleGastos: [], detalleIngresos: [] };
+export const calculateFinances = (rawJson, selectedYear) => {
+  if (!rawJson) {
+    return {
+      ingresos: 0,
+      gastos: 0,
+      balance: 0,
+      ingresosAño: 0,
+      gastosAño: 0,
+      balanceAño: 0,
+      ingresosTotal: 0,
+      gastosTotal: 0,
+      balanceTotal: 0,
+      detalleGastos: [],
+      detalleIngresos: [],
+      detalleGastosTotal: [],
+      detalleIngresosTotal: []
+    };
+  }
 
   const movimientos = Object.values(rawJson);
-  let ingresos = 0;
-  let gastos = 0;
-  let detalleGastos = [];
-  let detalleIngresos = [];
+  const targetYear = selectedYear ? parseInt(selectedYear) : null;
+
+  let ingresosTotal = 0;
+  let gastosTotal = 0;
+  let ingresosAño = 0;
+  let gastosAño = 0;
+
+  const detalleGastosTotal = [];
+  const detalleIngresosTotal = [];
+  const detalleGastosAño = [];
+  const detalleIngresosAño = [];
 
   movimientos.forEach(mov => {
     const monto = parseFloat(mov.cuanto) || 0;
+    const movDate = new Date(mov.fecha);
+    const movYear = !isNaN(movDate.getFullYear()) ? movDate.getFullYear() : null;
+    const matchesYear = targetYear ? movYear === targetYear : true;
 
     if (mov.tipo === 'deposito') {
-      ingresos += monto;
-      detalleIngresos.push({
+      ingresosTotal += monto;
+      const item = {
         id: mov.id || Math.random().toString(),
         fecha: mov.fecha,
         descripcion: mov.descripcion || 'Aporte mensual',
         monto: monto,
         quien: mov.quien || 'No especificado',
-        tipo: 'deposito'
-      });
+        tipo: 'deposito',
+        año: movYear
+      };
+      detalleIngresosTotal.push(item);
+      if (matchesYear) {
+        ingresosAño += monto;
+        detalleIngresosAño.push(item);
+      }
     } else if (mov.tipo === 'gasto' || mov.tipo === 'retiro') {
-      gastos += monto;
-      
-      detalleGastos.push({
+      gastosTotal += monto;
+      const item = {
         id: mov.id || Math.random().toString(),
         fecha: mov.fecha,
         descripcion: mov.descripcion || 'Gasto general (Sin descripción)',
         monto: monto,
         quien: mov.quien || 'No especificado',
-        tipo: mov.tipo || 'gasto'
-      });
+        tipo: mov.tipo || 'gasto',
+        año: movYear
+      };
+      detalleGastosTotal.push(item);
+      if (matchesYear) {
+        gastosAño += monto;
+        detalleGastosAño.push(item);
+      }
     }
   });
 
   // Ordenamos los movimientos: los más recientes arriba
-  detalleGastos.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
-  detalleIngresos.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+  const sortByDateDesc = (a, b) => (b.fecha || 0) - (a.fecha || 0);
+  detalleGastosTotal.sort(sortByDateDesc);
+  detalleIngresosTotal.sort(sortByDateDesc);
+  detalleGastosAño.sort(sortByDateDesc);
+  detalleIngresosAño.sort(sortByDateDesc);
 
   return {
-    ingresos,
-    gastos,
-    balance: ingresos - gastos,
-    detalleGastos,
-    detalleIngresos
+    // Si se pasa selectedYear, ingresos y gastos son de ese año
+    ingresos: targetYear ? ingresosAño : ingresosTotal,
+    gastos: targetYear ? gastosAño : gastosTotal,
+    // El saldo real en caja siempre es el acumulado total
+    balance: ingresosTotal - gastosTotal,
+    ingresosAño,
+    gastosAño,
+    balanceAño: ingresosAño - gastosAño,
+    ingresosTotal,
+    gastosTotal,
+    balanceTotal: ingresosTotal - gastosTotal,
+    detalleGastos: targetYear ? detalleGastosAño : detalleGastosTotal,
+    detalleIngresos: targetYear ? detalleIngresosAño : detalleIngresosTotal,
+    detalleGastosTotal,
+    detalleIngresosTotal
   };
 };
